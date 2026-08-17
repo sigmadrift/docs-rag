@@ -43,7 +43,10 @@ Claude Desktop 연결: `scripts/claude_desktop_config.example.json` 참고.
 
 ## 로드맵
 
-- [ ] 1주차: 업로드/청킹/임베딩/검색 REST, Alembic, 기본 테스트
-- [ ] 2주차: MCP 서버 연결, Claude Desktop에서 실제 질의, 도구 설명 튜닝
-- [ ] 3주차: SSE 스트리밍 답변(LLM 연동), 리랭커, ingest를 arq 워커로 분리, Docker Compose 배포(OCI)
-- [ ] 이후: 문장 단위 청킹, 하이브리드 검색(BM25+벡터), MCP 인증(Bearer → OAuth), 평가(RAGAS)
+- [x] 1주차: 업로드/청킹/임베딩/검색 REST, Alembic, 기본 테스트
+- [x] 2주차: MCP 서버(SDK v2) 구동·프로토콜 검증, Bearer 인증(`MCP_BEARER_TOKEN`)
+- [ ] 3주차: SSE 스트리밍 답변(LLM 연동, OpenAI 호환 API), 리랭커, ingest를 arq 워커로 분리
+- [ ] 이후: 문장 단위 청킹, 하이브리드 검색(BM25+벡터), MCP OAuth, 평가(RAGAS, BGE-M3 vs KURE-v1 비교)
+
+배포 형태: 사용자 직접 호출이 아니라 사내 정문 API(ASP.NET Core)가 REST(:8000)를 호출하고,
+사내 LLM 챗 클라이언트가 MCP(:8001)로 붙는 내부 서비스.

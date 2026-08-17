@@ -2,16 +2,47 @@
 
 실행: uv run python -m app.mcp_server.server  (Streamable HTTP, :8001/mcp)
 """
+
+import secrets
 import uuid
 
 from mcp.server import MCPServer
+from mcp.server.auth.provider import AccessToken, TokenVerifier
+from mcp.server.auth.settings import AuthSettings
 from sqlalchemy import select
 
+from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models import Chunk, Document
 from app.services import rag
 
-mcp = MCPServer("docs-rag")
+
+class StaticTokenVerifier(TokenVerifier):
+    """설정된 고정 Bearer 토큰과 비교하는 최소 구현. 사내망 서비스 간 인증 용도.
+    OAuth 도입 전까지의 중간 단계."""
+
+    async def verify_token(self, token: str) -> AccessToken | None:
+        expected = get_settings().mcp_bearer_token
+        if expected and secrets.compare_digest(token, expected):
+            return AccessToken(token=token, client_id="internal", scopes=[])
+        return None
+
+
+def _build_server() -> MCPServer:
+    if not get_settings().mcp_bearer_token:
+        # 토큰 미설정 = 로컬 개발 모드 (무인증)
+        return MCPServer("docs-rag")
+    return MCPServer(
+        "docs-rag",
+        token_verifier=StaticTokenVerifier(),
+        auth=AuthSettings(
+            issuer_url="http://localhost:8001",
+            resource_server_url="http://localhost:8001/mcp",
+        ),
+    )
+
+
+mcp = _build_server()
 
 
 @mcp.tool()
