@@ -4,14 +4,14 @@
 """
 import uuid
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.models import Chunk, Document
 from app.services import rag
 
-mcp = FastMCP("docs-rag", stateless_http=True)
+mcp = MCPServer("docs-rag")
 
 
 @mcp.tool()
@@ -55,6 +55,4 @@ def answer_from_docs(question: str) -> str:
 
 
 if __name__ == "__main__":
-    mcp.settings.host = "0.0.0.0"
-    mcp.settings.port = 8001
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", host="0.0.0.0", port=8001, stateless_http=True)
