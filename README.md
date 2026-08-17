@@ -7,9 +7,10 @@
 ```
 app/
   main.py            FastAPI 앱 (REST, /api)
+  worker.py          arq 인제스트 워커 (redis 큐 소비, 재시작 복구)
   mcp_server/        MCP 서버 (Streamable HTTP, :8001/mcp) — 서비스 레이어 재사용
-  api/               라우터 (documents, search)
-  services/          parser → chunking → embedding → ingest / rag(search)
+  api/               라우터 (documents, search, ask)
+  services/          parser → chunking(문장 단위) → embedding → ingest / rag(search)
   models/            SQLAlchemy 모델 (Document, Chunk[Vector])
   schemas/           Pydantic 입출력
   db/                engine/session
@@ -22,10 +23,11 @@ tests/
 
 ```bash
 cp .env.example .env
-docker compose up -d db
+docker compose up -d                            # postgres(pgvector) + redis
 uv sync
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload            # REST  → http://localhost:8000/docs
+uv run arq app.worker.WorkerSettings            # 인제스트 워커 (업로드 처리)
 uv run python -m app.mcp_server.server          # MCP   → http://localhost:8001/mcp
 ```
 
@@ -50,8 +52,9 @@ Claude Desktop 연결: `scripts/claude_desktop_config.example.json` 참고.
 - [x] 1주차: 업로드/청킹/임베딩/검색 REST, Alembic, 기본 테스트
 - [x] 2주차: MCP 서버(SDK v2) 구동·프로토콜 검증, Bearer 인증(`MCP_BEARER_TOKEN`)
 - [x] 3주차(일부): SSE 스트리밍 답변 `/api/ask` (OpenAI 호환 LLM 연동)
-- [ ] 3주차(남은 것): 리랭커, ingest를 arq 워커로 분리
-- [ ] 이후: 문장 단위 청킹, 하이브리드 검색(BM25+벡터), MCP OAuth, 평가(RAGAS, BGE-M3 vs KURE-v1 비교)
+- [x] 3주차: ingest를 arq 워커로 분리(재시작 복구·재시도), 문장 단위 청킹, 검색 통합 테스트
+- [ ] 3주차(남은 것): 리랭커
+- [ ] 이후: 하이브리드 검색(BM25+벡터), MCP OAuth, 평가(RAGAS, BGE-M3 vs KURE-v1 비교)
 
 배포 형태: 사용자 직접 호출이 아니라 사내 정문 API(ASP.NET Core)가 REST(:8000)를 호출하고,
 사내 LLM 챗 클라이언트가 MCP(:8001)로 붙는 내부 서비스.

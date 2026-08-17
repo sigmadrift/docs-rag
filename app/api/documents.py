@@ -1,7 +1,7 @@
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,15 +10,27 @@ from app.core.security import require_api_key
 from app.db.session import get_session
 from app.models import Document
 from app.schemas.document import DocumentOut
-from app.services.ingest import process_document
 
 router = APIRouter(prefix="/documents", tags=["documents"], dependencies=[Depends(require_api_key)])
+
+
+async def _save_upload(file: UploadFile, dest: Path, max_bytes: int) -> None:
+    """업로드를 청크 단위로 디스크에 저장. 전체를 메모리에 올리지 않고, 크기 초과 시 413."""
+    size = 0
+    with dest.open("wb") as out:
+        while chunk := await file.read(1024 * 1024):
+            size += len(chunk)
+            if size > max_bytes:
+                out.close()
+                dest.unlink(missing_ok=True)
+                raise HTTPException(413, f"파일이 너무 큼 (최대 {max_bytes // (1024 * 1024)}MB)")
+            out.write(chunk)
 
 
 @router.post("", response_model=DocumentOut, status_code=202)
 async def upload(
     file: UploadFile,
-    background: BackgroundTasks,
+    request: Request,
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ):
@@ -30,19 +42,37 @@ async def upload(
     upload_dir = Path(settings.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
     dest = upload_dir / f"{doc_id}_{safe_name}"
-    dest.write_bytes(await file.read())
+    await _save_upload(file, dest, settings.max_upload_mb * 1024 * 1024)
 
     doc = Document(id=doc_id, filename=safe_name, content_type=file.content_type or "text/plain")
     session.add(doc)
-    await session.commit()
+    try:
+        await session.commit()
+    except Exception:
+        dest.unlink(missing_ok=True)  # DB에 없는 문서의 파일이 디스크에 남지 않게
+        raise
 
-    background.add_task(process_document, doc.id, dest)
+    # job_id=문서 id: 워커 재시작 복구가 재등록해도 큐에 남아 있는 작업과 중복되지 않는다
+    try:
+        await request.app.state.arq.enqueue_job(
+            "process_document", str(doc.id), str(dest), _job_id=str(doc.id)
+        )
+    except Exception:  # noqa: BLE001  redis 오류 종류가 다양해 전부 실패 상태로 강등
+        doc.status = "failed"
+        doc.error = "작업 큐 등록 실패 (redis 연결 확인)"
+        await session.commit()
+        raise HTTPException(503, "작업 큐에 연결할 수 없음")
     return doc
 
 
 @router.get("", response_model=list[DocumentOut])
-async def list_documents(session: AsyncSession = Depends(get_session)):
-    return (await session.scalars(select(Document).order_by(Document.created_at.desc()))).all()
+async def list_documents(
+    session: AsyncSession = Depends(get_session),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    stmt = select(Document).order_by(Document.created_at.desc()).limit(limit).offset(offset)
+    return (await session.scalars(stmt)).all()
 
 
 @router.get("/{document_id}", response_model=DocumentOut)

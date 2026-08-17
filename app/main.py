@@ -1,25 +1,21 @@
 from contextlib import asynccontextmanager
 
+from arq import create_pool
+from arq.connections import RedisSettings
 from fastapi import FastAPI
 
 from app.api import ask, documents, search
 from app.core.config import get_settings
-from app.services.embedding import _model
+from app.services import embedding
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    model = _model()  # 임베딩 모델 미리 로드 (첫 요청 지연 방지)
-    # DB 스키마(Vector 차원)는 settings.embedding_dim으로 만들어지므로, 모델 실제 출력과
-    # 어긋나면 저장 시점에야 터진다. 시작 시점에 바로 실패시킨다.
-    actual = model.get_sentence_embedding_dimension()
-    expected = get_settings().embedding_dim
-    if actual != expected:
-        raise RuntimeError(
-            f"임베딩 차원 불일치: 모델={actual}, 설정/DB={expected}. "
-            f"EMBEDDING_DIM을 맞추고 마이그레이션을 다시 확인하세요."
-        )
+    embedding.preload_and_check()  # 모델 미리 로드 + 차원 검증 (첫 요청 지연/저장 시점 오류 방지)
+    # ingest 작업 큐. 워커(app/worker.py)가 같은 redis에서 작업을 소비한다.
+    app.state.arq = await create_pool(RedisSettings.from_dsn(get_settings().redis_url))
     yield
+    await app.state.arq.aclose()
 
 
 app = FastAPI(title="docs-rag", version="0.1.0", lifespan=lifespan)
