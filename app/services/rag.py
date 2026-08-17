@@ -7,6 +7,9 @@ from app.services import embedding
 
 
 async def search(session: AsyncSession, query: str, top_k: int = 5) -> list[SearchHit]:
+    # score = 1 - cosine_distance = 코사인 유사도. 정규화 임베딩 기준 이론 범위 [-1, 1].
+    # 주의: status='done' 필터 + HNSW 인덱스 조합은 후보를 스캔 후 걸러내므로, done 비율이
+    # 낮아지면 top_k보다 적게 반환될 수 있다 (pgvector 0.8+의 hnsw.iterative_scan으로 완화 가능).
     [qvec] = await embedding.embed([query])
     distance = Chunk.embedding.cosine_distance(qvec)
     stmt = (

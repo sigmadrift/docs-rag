@@ -31,6 +31,10 @@ async def stream_chat(messages: list[dict]) -> AsyncIterator[str]:
             data = line.removeprefix("data: ")
             if data == "[DONE]":
                 break
-            delta = json.loads(data)["choices"][0]["delta"].get("content")
+            # 일부 서버는 usage 전용 청크(빈 choices)나 delta 없는 청크를 보낸다
+            choices = json.loads(data).get("choices") or []
+            if not choices:
+                continue
+            delta = choices[0].get("delta", {}).get("content")
             if delta:
                 yield delta

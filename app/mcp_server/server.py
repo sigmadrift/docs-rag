@@ -29,15 +29,16 @@ class StaticTokenVerifier(TokenVerifier):
 
 
 def _build_server() -> MCPServer:
-    if not get_settings().mcp_bearer_token:
+    settings = get_settings()
+    if not settings.mcp_bearer_token:
         # 토큰 미설정 = 로컬 개발 모드 (무인증)
         return MCPServer("docs-rag")
     return MCPServer(
         "docs-rag",
         token_verifier=StaticTokenVerifier(),
         auth=AuthSettings(
-            issuer_url="http://localhost:8001",
-            resource_server_url="http://localhost:8001/mcp",
+            issuer_url=settings.mcp_public_url,
+            resource_server_url=f"{settings.mcp_public_url}/mcp",
         ),
     )
 
@@ -66,10 +67,14 @@ async def list_documents() -> list[dict]:
 @mcp.resource("doc://{document_id}")
 async def get_document_text(document_id: str) -> str:
     """문서 전체 텍스트(청크를 순서대로 이어붙인 것)."""
+    try:
+        doc_id = uuid.UUID(document_id)
+    except ValueError:
+        raise ValueError(f"잘못된 document_id (UUID 형식이어야 함): {document_id!r}") from None
     async with SessionLocal() as session:
         chunks = (
             await session.scalars(
-                select(Chunk).where(Chunk.document_id == uuid.UUID(document_id)).order_by(Chunk.seq)
+                select(Chunk).where(Chunk.document_id == doc_id).order_by(Chunk.seq)
             )
         ).all()
     return "\n".join(c.content for c in chunks)
