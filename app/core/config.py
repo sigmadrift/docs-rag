@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     # MCP 서버 Bearer 토큰. 빈 값이면 인증 비활성화(로컬 개발용), 사내 배포 시 반드시 설정.
     mcp_bearer_token: str = ""
+    # OpenAI 호환 LLM 서버 (Ollama/vLLM/사내 서버 공용 — URL과 모델명만 바꾸면 교체됨)
+    llm_base_url: str = "http://localhost:11434/v1"
+    llm_api_key: str = "ollama"  # Ollama는 아무 값이나 허용, vLLM/사내 서버는 실제 키
+    llm_model: str = "mistral"
 
 
 @lru_cache

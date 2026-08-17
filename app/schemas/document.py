@@ -25,3 +25,8 @@ class SearchHit(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 5
+
+
+class AskRequest(BaseModel):
+    question: str
+    top_k: int = 5

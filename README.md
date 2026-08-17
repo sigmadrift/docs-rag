@@ -37,6 +37,10 @@ uv run python -m app.mcp_server.server          # MCP   → http://localhost:800
 curl -X POST localhost:8000/api/documents -H "X-API-Key: change-me" -F file=@작업표준서.pdf
 curl -X POST localhost:8000/api/search -H "X-API-Key: change-me" \
   -H "Content-Type: application/json" -d '{"query":"압착 불량 판정 기준","top_k":3}'
+
+# LLM 답변 (SSE 스트리밍: sources → delta... → done). Ollama 등 OpenAI 호환 서버 필요(LLM_* 설정)
+curl -N -X POST localhost:8000/api/ask -H "X-API-Key: change-me" \
+  -H "Content-Type: application/json" -d '{"question":"0.5sq 와이어의 최소 인장강도는?","top_k":3}'
 ```
 
 Claude Desktop 연결: `scripts/claude_desktop_config.example.json` 참고.
@@ -45,7 +49,8 @@ Claude Desktop 연결: `scripts/claude_desktop_config.example.json` 참고.
 
 - [x] 1주차: 업로드/청킹/임베딩/검색 REST, Alembic, 기본 테스트
 - [x] 2주차: MCP 서버(SDK v2) 구동·프로토콜 검증, Bearer 인증(`MCP_BEARER_TOKEN`)
-- [ ] 3주차: SSE 스트리밍 답변(LLM 연동, OpenAI 호환 API), 리랭커, ingest를 arq 워커로 분리
+- [x] 3주차(일부): SSE 스트리밍 답변 `/api/ask` (OpenAI 호환 LLM 연동)
+- [ ] 3주차(남은 것): 리랭커, ingest를 arq 워커로 분리
 - [ ] 이후: 문장 단위 청킹, 하이브리드 검색(BM25+벡터), MCP OAuth, 평가(RAGAS, BGE-M3 vs KURE-v1 비교)
 
 배포 형태: 사용자 직접 호출이 아니라 사내 정문 API(ASP.NET Core)가 REST(:8000)를 호출하고,

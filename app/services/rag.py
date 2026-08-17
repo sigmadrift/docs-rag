@@ -27,3 +27,15 @@ async def search(session: AsyncSession, query: str, top_k: int = 5) -> list[Sear
         )
         for chunk, filename, dist in rows
     ]
+
+
+def build_messages(question: str, hits: list[SearchHit]) -> list[dict]:
+    """검색 결과를 근거로 답하게 하는 chat 메시지 구성."""
+    context = "\n\n".join(f"[{h.filename} #{h.seq}]\n{h.content}" for h in hits)
+    system = (
+        "너는 사내 문서 기반 질의응답 어시스턴트다. 아래 문서 발췌만을 근거로 한국어로 답하라. "
+        "발췌에 없는 내용은 추측하지 말고 모른다고 답하라. "
+        "답변에 사용한 근거는 [파일명 #번호] 형식으로 인용하라."
+    )
+    user = f"문서 발췌:\n{context}\n\n질문: {question}"
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]

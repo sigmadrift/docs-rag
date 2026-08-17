@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import documents, search
+from app.api import ask, documents, search
 from app.core.config import get_settings
 from app.services.embedding import _model
 
@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="docs-rag", version="0.1.0", lifespan=lifespan)
 app.include_router(documents.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
+app.include_router(ask.router, prefix="/api")
 
 
 @app.get("/health", tags=["meta"])
