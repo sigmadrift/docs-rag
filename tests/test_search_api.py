@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.core import config
 from app.db.base import Base
 from app.models import Chunk, Document
+from app.services import reranker
 
 DIM = 1024
 
@@ -110,3 +111,42 @@ async def test_search_returns_done_docs_only(client):
     assert hits[0]["filename"] == "압착기준.txt"
     assert hits[0]["score"] == pytest.approx(1.0)
     assert all(h["filename"] != "처리중.txt" for h in hits)
+
+
+class _FakeReranker:
+    """content별 점수를 미리 정해둔 cross-encoder 대역 (모르는 청크는 0점)."""
+
+    def __init__(self, scores: dict[str, float]):
+        self.scores = scores
+
+    def predict(self, pairs):
+        return [self.scores.get(content, 0.0) for _, content in pairs]
+
+
+async def test_search_reranks_candidates(client, monkeypatch):
+    """리랭킹을 켜면 top_k보다 넓게 후보를 뽑아 재정렬한다.
+
+    top_k=1이어도 후보를 rerank_candidates만큼 가져오기 때문에, 벡터 1위가 아니었던
+    청크가 리랭커 점수로 1위가 될 수 있다.
+    """
+    settings = config.get_settings()
+    monkeypatch.setattr(settings, "rerank_enabled", True)
+    monkeypatch.setattr(settings, "rerank_candidates", 10)
+    # 벡터 검색 1위("압착 불량 판정 기준")를 리랭커가 아래로 끌어내리도록 점수를 뒤집는다
+    monkeypatch.setattr(
+        reranker,
+        "_model",
+        lambda: _FakeReranker({"압착 불량 판정 기준": 0.1, "전혀 다른 내용": 0.9}),
+    )
+
+    r = await client.post(
+        "/api/search",
+        json={"query": "압착 불량", "top_k": 1},
+        headers={"X-API-Key": "test-key"},
+    )
+
+    assert r.status_code == 200
+    hits = r.json()
+    assert len(hits) == 1
+    assert hits[0]["filename"] == "무관.txt"
+    assert hits[0]["score"] == pytest.approx(0.9)

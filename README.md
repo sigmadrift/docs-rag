@@ -10,7 +10,7 @@ app/
   worker.py          arq 인제스트 워커 (redis 큐 소비, 재시작 복구)
   mcp_server/        MCP 서버 (Streamable HTTP, :8001/mcp) — 서비스 레이어 재사용
   api/               라우터 (documents, search, ask)
-  services/          parser → chunking(문장 단위) → embedding → ingest / rag(search)
+  services/          parser → chunking(문장 단위) → embedding → ingest / rag(search) / reranker
   models/            SQLAlchemy 모델 (Document, Chunk[Vector])
   schemas/           Pydantic 입출력
   db/                engine/session
@@ -45,6 +45,10 @@ curl -N -X POST localhost:8000/api/ask -H "X-API-Key: change-me" \
   -H "Content-Type: application/json" -d '{"question":"0.5sq 와이어의 최소 인장강도는?","top_k":3}'
 ```
 
+검색 정확도를 높이려면 `.env`에 `RERANK_ENABLED=true`를 준다. 벡터 검색으로 후보 30개를 뽑아
+cross-encoder(BGE-reranker-v2-m3)로 재정렬한 뒤 상위 `top_k`만 돌려준다. 이때 응답의 `score`는
+코사인 유사도가 아니라 리랭커 관련도(0~1)다. 모델 약 2.2GB가 추가로 내려받아진다.
+
 Claude Desktop 연결: `scripts/claude_desktop_config.example.json` 참고.
 
 ## 로드맵
@@ -53,7 +57,7 @@ Claude Desktop 연결: `scripts/claude_desktop_config.example.json` 참고.
 - [x] 2주차: MCP 서버(SDK v2) 구동·프로토콜 검증, Bearer 인증(`MCP_BEARER_TOKEN`)
 - [x] 3주차(일부): SSE 스트리밍 답변 `/api/ask` (OpenAI 호환 LLM 연동)
 - [x] 3주차: ingest를 arq 워커로 분리(재시작 복구·재시도), 문장 단위 청킹, 검색 통합 테스트
-- [ ] 3주차(남은 것): 리랭커
+- [x] 3주차: 리랭커(cross-encoder 재정렬, `RERANK_ENABLED=true`로 활성화)
 - [ ] 이후: 하이브리드 검색(BM25+벡터), MCP OAuth, 평가(RAGAS, BGE-M3 vs KURE-v1 비교)
 
 배포 형태: 사용자 직접 호출이 아니라 사내 정문 API(ASP.NET Core)가 REST(:8000)를 호출하고,

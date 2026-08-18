@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"  # Ollama는 아무 값이나 허용, vLLM/사내 서버는 실제 키
     llm_model: str = "mistral"
+    # 리랭커(cross-encoder). 켜면 벡터 검색으로 rerank_candidates개를 뽑아 재정렬한 뒤 top_k를 고른다.
+    # 모델이 별도로 약 2.2GB 내려받아지고 검색이 느려지므로 기본은 비활성화.
+    rerank_enabled: bool = False
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    rerank_candidates: int = 30
 
 
 @lru_cache

@@ -1,15 +1,19 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models import Chunk, Document
 from app.schemas.document import SearchHit
-from app.services import embedding
+from app.services import embedding, reranker
 
 
 async def search(session: AsyncSession, query: str, top_k: int = 5) -> list[SearchHit]:
     # score = 1 - cosine_distance = 코사인 유사도. 정규화 임베딩 기준 이론 범위 [-1, 1].
     # 주의: status='done' 필터 + HNSW 인덱스 조합은 후보를 스캔 후 걸러내므로, done 비율이
     # 낮아지면 top_k보다 적게 반환될 수 있다 (pgvector 0.8+의 hnsw.iterative_scan으로 완화 가능).
+    settings = get_settings()
+    # 리랭킹을 켜면 벡터 검색은 후보만 넓게 뽑고, 최종 순위는 cross-encoder가 정한다.
+    limit = max(top_k, settings.rerank_candidates) if settings.rerank_enabled else top_k
     [qvec] = await embedding.embed([query])
     distance = Chunk.embedding.cosine_distance(qvec)
     stmt = (
@@ -17,10 +21,10 @@ async def search(session: AsyncSession, query: str, top_k: int = 5) -> list[Sear
         .join(Document, Chunk.document_id == Document.id)
         .where(Document.status == "done")
         .order_by(distance)
-        .limit(top_k)
+        .limit(limit)
     )
     rows = (await session.execute(stmt)).all()
-    return [
+    hits = [
         SearchHit(
             document_id=chunk.document_id,
             filename=filename,
@@ -30,6 +34,9 @@ async def search(session: AsyncSession, query: str, top_k: int = 5) -> list[Sear
         )
         for chunk, filename, dist in rows
     ]
+    if not settings.rerank_enabled:
+        return hits
+    return await reranker.rerank(query, hits, top_k)
 
 
 def build_messages(question: str, hits: list[SearchHit]) -> list[dict]:
