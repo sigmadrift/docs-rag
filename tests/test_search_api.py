@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.core import config
 from app.db.base import Base
 from app.models import Chunk, Document
-from app.services import reranker
+from app.services import rag, reranker
 
 DIM = 1024
 
@@ -38,13 +38,14 @@ async def db(monkeypatch):
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
             await conn.run_sync(Base.metadata.create_all)
     except Exception as e:  # noqa: BLE001
         await engine.dispose()
         pytest.skip(f"DB 연결 불가 ({type(e).__name__}) — docker compose up -d 후 실행")
 
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
-    doc_ids = [uuid.uuid4() for _ in range(3)]
+    doc_ids = [uuid.uuid4() for _ in range(4)]
     async with session_factory() as s:
         # done 문서(정답), processing 문서(필터로 제외돼야 함), done이지만 무관한 문서
         s.add_all(
@@ -52,6 +53,7 @@ async def db(monkeypatch):
                 Document(id=doc_ids[0], filename="압착기준.txt", content_type="text/plain", status="done"),
                 Document(id=doc_ids[1], filename="처리중.txt", content_type="text/plain", status="processing"),
                 Document(id=doc_ids[2], filename="무관.txt", content_type="text/plain", status="done"),
+                Document(id=doc_ids[3], filename="품번규격.txt", content_type="text/plain", status="done"),
             ]
         )
         await s.flush()
@@ -60,6 +62,10 @@ async def db(monkeypatch):
                 Chunk(document_id=doc_ids[0], seq=0, content="압착 불량 판정 기준", embedding=_fake_vec("압착")),
                 Chunk(document_id=doc_ids[1], seq=0, content="압착 관련이지만 처리중", embedding=_fake_vec("압착")),
                 Chunk(document_id=doc_ids[2], seq=0, content="전혀 다른 내용", embedding=_fake_vec("기타")),
+                # 임베딩은 질의와 먼 방향(=벡터로는 안 잡힘)이지만 질의어를 문자열로 포함한다.
+                # 조사가 붙어 있어 어절 단위 전문검색이라면 놓쳤을 케이스이기도 하다.
+                Chunk(document_id=doc_ids[3], seq=0,
+                      content="품번 XK-2201 압착을 규격대로 확인한다", embedding=_fake_vec("기타")),
             ]
         )
         await s.commit()
@@ -93,12 +99,24 @@ async def client(db, monkeypatch):
         app.dependency_overrides.clear()
 
 
+@pytest.fixture
+def stages(db, monkeypatch):
+    """검색 단계 on/off를 테스트마다 명시한다 (설정 기본값이 바뀌어도 테스트가 흔들리지 않게).
+
+    기본은 벡터 단독. 하이브리드/리랭커가 필요한 테스트에서 각자 켠다.
+    """
+    s = config.get_settings()
+    monkeypatch.setattr(s, "hybrid_enabled", False)
+    monkeypatch.setattr(s, "rerank_enabled", False)
+    return s
+
+
 async def test_search_requires_api_key(client):
     r = await client.post("/api/search", json={"query": "압착", "top_k": 3})
     assert r.status_code == 401
 
 
-async def test_search_returns_done_docs_only(client):
+async def test_search_returns_done_docs_only(client, stages):
     r = await client.post(
         "/api/search",
         json={"query": "압착 불량", "top_k": 5},
@@ -123,15 +141,14 @@ class _FakeReranker:
         return [self.scores.get(content, 0.0) for _, content in pairs]
 
 
-async def test_search_reranks_candidates(client, monkeypatch):
+async def test_search_reranks_candidates(client, stages, monkeypatch):
     """리랭킹을 켜면 top_k보다 넓게 후보를 뽑아 재정렬한다.
 
     top_k=1이어도 후보를 rerank_candidates만큼 가져오기 때문에, 벡터 1위가 아니었던
     청크가 리랭커 점수로 1위가 될 수 있다.
     """
-    settings = config.get_settings()
-    monkeypatch.setattr(settings, "rerank_enabled", True)
-    monkeypatch.setattr(settings, "rerank_candidates", 10)
+    monkeypatch.setattr(stages, "rerank_enabled", True)
+    monkeypatch.setattr(stages, "candidate_k", 10)
     # 벡터 검색 1위("압착 불량 판정 기준")를 리랭커가 아래로 끌어내리도록 점수를 뒤집는다
     monkeypatch.setattr(
         reranker,
@@ -150,3 +167,34 @@ async def test_search_reranks_candidates(client, monkeypatch):
     assert len(hits) == 1
     assert hits[0]["filename"] == "무관.txt"
     assert hits[0]["score"] == pytest.approx(0.9)
+
+
+async def test_keyword_search_matches_across_particles(db, stages):
+    """트라이그램 키워드 검색은 조사가 붙어 있어도 매칭한다.
+
+    "압착 규격"으로 "…압착을 규격대로…"를 찾는다. 어절 단위 전문검색이라면 조사 때문에
+    놓쳤을 케이스다. (word_similarity 0.5 — pg_trgm 기본 임계값 0.6이면 탈락하므로
+    keyword_threshold를 낮춰 잡은 이유이기도 하다.)
+    """
+    async with db() as session:
+        hits = await rag._keyword_search(session, "압착 규격", limit=10)
+
+    assert any(h.filename == "품번규격.txt" for h in hits)
+    # 관련 없는 청크(유사도 0.2대)는 임계값에서 걸러진다
+    assert all(h.filename != "무관.txt" for h in hits)
+
+
+async def test_hybrid_adds_keyword_only_hit(client, stages, monkeypatch):
+    """하이브리드는 벡터가 후보로 못 올린 청크를 키워드 쪽에서 끌어올린다."""
+    monkeypatch.setattr(stages, "candidate_k", 1)
+    headers = {"X-API-Key": "test-key"}
+    query = "품번 XK-2201 압착"
+
+    # 벡터 단독: 품번규격.txt는 임베딩 방향이 질의와 달라 후보 1개 안에 들지 못한다
+    r = await client.post("/api/search", json={"query": query, "top_k": 1}, headers=headers)
+    assert [h["filename"] for h in r.json()] == ["압착기준.txt"]
+
+    # 하이브리드: 문자열이 거의 그대로 일치(0.93)해 키워드 1위로 올라오고, RRF로 합류한다
+    monkeypatch.setattr(stages, "hybrid_enabled", True)
+    r = await client.post("/api/search", json={"query": query, "top_k": 2}, headers=headers)
+    assert "품번규격.txt" in [h["filename"] for h in r.json()]

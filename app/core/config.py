@@ -24,11 +24,19 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"  # Ollama는 아무 값이나 허용, vLLM/사내 서버는 실제 키
     llm_model: str = "mistral"
-    # 리랭커(cross-encoder). 켜면 벡터 검색으로 rerank_candidates개를 뽑아 재정렬한 뒤 top_k를 고른다.
+    # 검색 후보 수. 벡터/키워드 검색이 각각 이만큼 뽑고, 융합·재정렬을 거쳐 top_k만 남는다.
+    candidate_k: int = 30
+    # 하이브리드 검색: 벡터 결과와 트라이그램 키워드 결과를 RRF로 융합한다.
+    # pg_trgm 확장과 인덱스가 필요하므로 alembic upgrade head를 먼저 돌려야 한다.
+    hybrid_enabled: bool = True
+    # 키워드 매칭 최소 유사도(word_similarity). pg_trgm 기본값 0.6은 질의가 조금만 길어져도
+    # 아무것도 걸리지 않아 하이브리드가 무의미해지므로 낮춰 잡는다.
+    # 올리면 정확 매칭만, 내리면 잡음이 늘어난다.
+    keyword_threshold: float = 0.3
+    # 리랭커(cross-encoder). 켜면 후보를 재정렬해 top_k를 고른다.
     # 모델이 별도로 약 2.2GB 내려받아지고 검색이 느려지므로 기본은 비활성화.
     rerank_enabled: bool = False
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
-    rerank_candidates: int = 30
 
 
 @lru_cache
