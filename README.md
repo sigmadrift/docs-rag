@@ -10,7 +10,8 @@ app/
   worker.py          arq 인제스트 워커 (redis 큐 소비, 재시작 복구)
   mcp_server/        MCP 서버 (Streamable HTTP, :8001/mcp) — 서비스 레이어 재사용
   api/               라우터 (documents, search, ask)
-  services/          parser → chunking(문장 단위) → embedding → ingest / rag(하이브리드 검색) / reranker
+  services/          parser → chunking(문장 단위) | table(표는 행 단위) → embedding → ingest
+                     rag(하이브리드 검색) / reranker
   models/            SQLAlchemy 모델 (Document, Chunk[Vector])
   schemas/           Pydantic 입출력
   db/                engine/session
@@ -32,6 +33,10 @@ uv run python -m app.mcp_server.server          # MCP   → http://localhost:800
 ```
 
 첫 실행 시 BGE-M3(약 2.2GB) 다운로드됨.
+
+지원 형식은 PDF, 텍스트(txt/md), 엑셀(xlsx/xlsm)이다. 엑셀은 문장 단위로 자르면 한 청크에
+여러 행이 섞여 LLM이 다른 행의 수치를 인용할 수 있으므로, **행 하나를 청크 하나로** 만든다.
+문서 메타(제목·문서번호)는 각 행 앞에 붙이고, 다단 헤더는 병합을 풀어 열별로 합성한다.
 
 ## 사용
 

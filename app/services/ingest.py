@@ -6,7 +6,7 @@ from sqlalchemy import delete
 
 from app.db.session import SessionLocal
 from app.models import Chunk, Document
-from app.services import chunking, embedding, parser
+from app.services import chunking, embedding, parser, table
 
 
 async def process_document(document_id: uuid.UUID, path: Path) -> None:
@@ -19,8 +19,11 @@ async def process_document(document_id: uuid.UUID, path: Path) -> None:
         await session.commit()
 
         try:
-            text = parser.extract_text(path, doc.content_type)
-            pieces = chunking.split_text(text)
+            if parser.is_spreadsheet(path, doc.content_type):
+                # 표는 행마다 의미가 완결되므로 행을 그대로 청크로 쓴다
+                pieces = table.extract_rows(path)
+            else:
+                pieces = chunking.split_text(parser.extract_text(path, doc.content_type))
             vectors = await embedding.embed(pieces) if pieces else []
             # 재시도 대비: 이전 시도가 남긴 청크가 있으면 지우고 새로 쓴다 (중복 방지)
             await session.execute(delete(Chunk).where(Chunk.document_id == doc.id))
