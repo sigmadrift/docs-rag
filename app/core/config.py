@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"  # Ollama는 아무 값이나 허용, vLLM/사내 서버는 실제 키
     llm_model: str = "mistral"
+    # 인제스트: 임베딩을 이 크기로 나눠 호출한다(진행률 로그 + 메모리 급증 방지).
+    embed_batch_size: int = 100
+    # arq 작업 타임아웃(초). 대용량 문서 하나를 임베딩하는 시간보다 넉넉해야 한다.
+    # 넘기면 작업이 취소되고 문서가 processing 상태에 갇힌다.
+    ingest_job_timeout: int = 3600
     # 검색 후보 수. 벡터/키워드 검색이 각각 이만큼 뽑고, 융합·재정렬을 거쳐 top_k만 남는다.
     candidate_k: int = 30
     # 하이브리드 검색: 벡터 결과와 트라이그램 키워드 결과를 RRF로 융합한다.
