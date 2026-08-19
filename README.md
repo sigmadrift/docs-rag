@@ -65,6 +65,20 @@ curl -N -X POST localhost:8000/api/ask -H "X-API-Key: change-me" \
 응답의 `score`는 마지막에 적용된 단계의 점수다 — 벡터 단독이면 코사인 유사도, 하이브리드면 RRF 점수,
 리랭커까지 켜면 리랭커 관련도(0~1).
 
+### 검색 품질 측정
+
+`uv run python -m scripts.eval_search` — 인제스트된 DB에 질문 세트(`scripts/eval_queries.json`)를
+던져 정답 청크의 순위로 Hit@K와 MRR을 잰다. 실제 사내 조건표(853청크)에 질문 23개 기준:
+
+| 설정 | Hit@1 | Hit@3 | MRR |
+|---|---|---|---|
+| 벡터 단독 | 0.74 | 0.91 | 0.825 |
+| + 하이브리드 | 0.83 | 0.96 | 0.884 |
+| + 리랭커 | 0.96 | 1.00 | 0.978 |
+
+표본이 23개라 한 문제가 4%p를 좌우하니 절대값보다 방향으로 읽을 것. 질문 20개는 품번을 포함해
+자동 생성했으므로 키워드 검색에 유리한 편향이 있다.
+
 > 트라이그램은 질의가 길수록 유사도가 낮아진다. 문장형 질의가 많아 키워드 쪽이 자주 비면
 > `KEYWORD_THRESHOLD`를 낮추거나, 형태소 분석 기반(pgroonga)으로의 교체를 검토할 것.
 
@@ -79,7 +93,8 @@ Claude Desktop 연결: `scripts/claude_desktop_config.example.json` 참고.
 - [x] 3주차: ingest를 arq 워커로 분리(재시작 복구·재시도), 문장 단위 청킹, 검색 통합 테스트
 - [x] 3주차: 리랭커(cross-encoder 재정렬, `RERANK_ENABLED=true`로 활성화)
 - [x] 4주차: 하이브리드 검색(벡터 + pg_trgm 트라이그램 키워드, RRF 융합)
-- [ ] 이후: MCP OAuth, 평가(RAGAS, BGE-M3 vs KURE-v1 비교)
+- [x] 4주차: 검색 품질 평가(Hit@K·MRR)로 하이브리드·리랭커 효과 측정
+- [ ] 이후: MCP OAuth, RAGAS(답변 품질), BGE-M3 vs KURE-v1 비교
 
 배포 형태: 사용자 직접 호출이 아니라 사내 정문 API(ASP.NET Core)가 REST(:8000)를 호출하고,
 사내 LLM 챗 클라이언트가 MCP(:8001)로 붙는 내부 서비스.

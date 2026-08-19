@@ -1,0 +1,181 @@
+[
+  {
+    "question": "TK201-00100 단자에 AEXF 0.5SQ 전선을 압착할 때 C/H 기준값이 얼마야?",
+    "must_contain": [
+      "TK201-00100",
+      "전선 재질: AEXF",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "740999-3 TEFLON 0.5SQ 고착력 기준 알려줘",
+    "must_contain": [
+      "740999-3",
+      "전선 재질: TEFLON",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "AVS 0.5SQ 전선을 35465-8000에 압착하는 조건 알려줘",
+    "must_contain": [
+      "35465-8000",
+      "전선 재질: AVS",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "730026-1(AEXF, 2SQ)의 IN/W 공차 범위는?",
+    "must_contain": [
+      "730026-1",
+      "전선 재질: AEXF",
+      "굵기(SQ): 2"
+    ]
+  },
+  {
+    "question": "K200294-20 TEFLON 0.3SQ 압착 규격 전체를 보여줘",
+    "must_contain": [
+      "K200294-20",
+      "전선 재질: TEFLON",
+      "굵기(SQ): 0.3"
+    ]
+  },
+  {
+    "question": "780759-1 단자에 AESSXF 0.5SQ 전선을 압착할 때 C/H 기준값이 얼마야?",
+    "must_contain": [
+      "780759-1",
+      "전선 재질: AESSXF",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "35464-8000 TEFLON 0.5SQ 고착력 기준 알려줘",
+    "must_contain": [
+      "35464-8000",
+      "전선 재질: TEFLON",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "AV 1.25SQ 전선을 710519-1에 압착하는 조건 알려줘",
+    "must_contain": [
+      "710519-1",
+      "전선 재질: AV",
+      "굵기(SQ): 1.25"
+    ]
+  },
+  {
+    "question": "TP105-00100(TEFLON, 0.5SQ)의 IN/W 공차 범위는?",
+    "must_contain": [
+      "TP105-00100",
+      "전선 재질: TEFLON",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "730012-3 TEFLON 0.5SQ 압착 규격 전체를 보여줘",
+    "must_contain": [
+      "730012-3",
+      "전선 재질: TEFLON",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "741338-3 단자에 AVSS 0.3SQ 전선을 압착할 때 C/H 기준값이 얼마야?",
+    "must_contain": [
+      "741338-3",
+      "전선 재질: AVSS",
+      "굵기(SQ): 0.3"
+    ]
+  },
+  {
+    "question": "741375-3 AESSXF 0.85SQ 고착력 기준 알려줘",
+    "must_contain": [
+      "741375-3",
+      "전선 재질: AESSXF",
+      "굵기(SQ): 0.85"
+    ]
+  },
+  {
+    "question": "AVSS 0.3SQ 전선을 1897724-1에 압착하는 조건 알려줘",
+    "must_contain": [
+      "1897724-1",
+      "전선 재질: AVSS",
+      "굵기(SQ): 0.3"
+    ]
+  },
+  {
+    "question": "731263-2(AEXF, 0.5SQ)의 IN/W 공차 범위는?",
+    "must_contain": [
+      "731263-2",
+      "전선 재질: AEXF",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "SXAM-01T-P0.6 AVSS 0.5SQ 압착 규격 전체를 보여줘",
+    "must_contain": [
+      "SXAM-01T-P0.6",
+      "전선 재질: AVSS",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "MT091-63280 단자에 FLR2X-A 1.5SQ 전선을 압착할 때 C/H 기준값이 얼마야?",
+    "must_contain": [
+      "MT091-63280",
+      "전선 재질: FLR2X-A",
+      "굵기(SQ): 1.5"
+    ]
+  },
+  {
+    "question": "710389-3 TEFLON 0.5SQ 고착력 기준 알려줘",
+    "must_contain": [
+      "710389-3",
+      "전선 재질: TEFLON",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "TEFLON 0.3SQ 전선을 25087TS-B에 압착하는 조건 알려줘",
+    "must_contain": [
+      "25087TS-B",
+      "전선 재질: TEFLON",
+      "굵기(SQ): 0.3"
+    ]
+  },
+  {
+    "question": "K200294-30(AESSXF, 0.5SQ)의 IN/W 공차 범위는?",
+    "must_contain": [
+      "K200294-30",
+      "전선 재질: AESSXF",
+      "굵기(SQ): 0.5"
+    ]
+  },
+  {
+    "question": "760149-1 TEFLON 0.3 X2SQ 압착 규격 전체를 보여줘",
+    "must_contain": [
+      "760149-1",
+      "전선 재질: TEFLON",
+      "굵기(SQ): 0.3 X2"
+    ]
+  },
+  {
+    "question": "스트립 길이를 3.5mm로 특별관리해야 하는 단자 조건이 뭐야?",
+    "must_contain": [
+      "스트립 길이 3.5"
+    ]
+  },
+  {
+    "question": "압착 전에 인슐레이션 높이와 폭을 반드시 확인해야 하는 단자는?",
+    "must_contain": [
+      "반드시 확인할 것"
+    ]
+  },
+  {
+    "question": "탈피 길이가 5mm인 AVSS 0.3SQ 단자 압착 조건",
+    "must_contain": [
+      "탈피",
+      "전선 재질: AVSS"
+    ]
+  }
+]
