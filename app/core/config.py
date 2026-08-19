@@ -41,4 +41,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # 값은 .env와 환경변수에서 채워지므로 인자를 넘기지 않는다. 타입 체커는 이 동작을 모른 채
+    # database_url처럼 기본값 없는 필드를 생성자 필수 인자로 보고 경고한다.
+    return Settings()  # type: ignore[call-arg]
