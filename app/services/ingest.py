@@ -26,7 +26,7 @@ async def process_document(document_id: uuid.UUID, path: Path) -> None:
             await session.execute(delete(Chunk).where(Chunk.document_id == doc.id))
             session.add_all(
                 Chunk(document_id=doc.id, seq=i, content=c, embedding=v)
-                for i, (c, v) in enumerate(zip(pieces, vectors))
+                for i, (c, v) in enumerate(zip(pieces, vectors, strict=True))
             )
             doc.status = "done"
             await session.commit()

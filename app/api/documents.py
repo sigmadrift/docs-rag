@@ -57,11 +57,11 @@ async def upload(
         await request.app.state.arq.enqueue_job(
             "process_document", str(doc.id), str(dest), _job_id=str(doc.id)
         )
-    except Exception:  # noqa: BLE001  redis 오류 종류가 다양해 전부 실패 상태로 강등
+    except Exception as e:  # noqa: BLE001  redis 오류 종류가 다양해 전부 실패 상태로 강등
         doc.status = "failed"
         doc.error = "작업 큐 등록 실패 (redis 연결 확인)"
         await session.commit()
-        raise HTTPException(503, "작업 큐에 연결할 수 없음")
+        raise HTTPException(503, "작업 큐에 연결할 수 없음") from e
     return doc
 
 

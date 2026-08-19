@@ -5,10 +5,12 @@
 
 import secrets
 import uuid
+from typing import Annotated
 
 from mcp.server import MCPServer
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from mcp.server.auth.settings import AuthSettings
+from pydantic import Field
 from sqlalchemy import select
 
 from app.core.config import get_settings
@@ -47,10 +49,14 @@ mcp = _build_server()
 
 
 @mcp.tool()
-async def search_documents(query: str, top_k: int = 5) -> list[dict]:
-    """사내 문서(작업표준서, 불량이력, 도면 메타데이터 등)에서 질의와 의미적으로 유사한
-    구절을 검색한다. 결과는 유사도 순이며 각 항목에 document_id, filename, seq, content, score를 포함한다.
-    답변할 때는 반드시 filename과 seq를 근거로 인용할 것."""
+async def search_documents(
+    query: str, top_k: Annotated[int, Field(ge=1, le=50)] = 5
+) -> list[dict]:
+    """사내 문서(작업표준서, 불량이력, 도면 메타데이터 등)에서 질의와 관련된 구절을 검색한다.
+
+    의미 기반 벡터 검색에 키워드 검색을 더해 관련도 순으로 정렬한다. 품번·규격처럼 정확한
+    문자열이 중요한 질의에도 쓸 수 있다. 각 항목은 document_id, filename, seq, content,
+    score(높을수록 관련)를 포함한다. 답변할 때는 반드시 filename과 seq를 근거로 인용할 것."""
     async with SessionLocal() as session:
         hits = await rag.search(session, query, top_k)
     return [h.model_dump(mode="json") for h in hits]
